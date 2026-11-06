@@ -21,11 +21,10 @@ const cancelReviewBtn = byId("cancelReviewBtn");
 const cameraStatus = byId("cameraStatus");
 const reviewStatus = byId("reviewStatus");
 const welcomeStatus = byId("welcomeStatus");
-const staffFields = byId("staffFields");
 
 let auth;
 let db;
-let staffReady;
+let authReady;
 let cameraStream;
 let cameraSession = 0;
 let saving = false;
@@ -36,9 +35,9 @@ try {
   auth = firebase.auth();
   db = firebase.firestore();
 
-  // Conserva la sesión del personal solo mientras la pestaña esté abierta.
-  staffReady = auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
-  staffReady.catch(() => {});
+  // Conserva la sesión anónima solo mientras la pestaña esté abierta.
+  authReady = auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+  authReady.catch(() => {});
 } catch {
   welcomeStatus.textContent = "Firebase no está disponible. Puede revisar los datos sin guardarlos.";
 }
@@ -55,12 +54,6 @@ function closeCamera() {
   cameraDialog.close();
 }
 
-function updateStaffFields() {
-  const needsLogin = !auth?.currentUser;
-  staffFields.hidden = !needsLogin;
-  staffFields.disabled = !needsLogin;
-}
-
 function openReview(cedula = "", hint = "Ingrese los datos de la cédula.") {
   welcomeStatus.textContent = "";
   reviewForm.reset();
@@ -68,7 +61,6 @@ function openReview(cedula = "", hint = "Ingrese los datos de la cédula.") {
   entryRef = null;
   byId("cedula").value = cedula;
   byId("reviewHint").textContent = hint;
-  updateStaffFields();
   reviewDialog.showModal();
   byId(cedula ? "guestName" : "cedula").focus();
 }
@@ -228,9 +220,16 @@ async function saveEntry(event) {
   const cedulaInput = byId("cedula").value.trim();
   const digits = cedulaInput.replace(/[\s-]/g, "");
   const nombre = byId("guestName").value.trim();
+  const guardName = byId("guardName").value.trim();
+  const guardNumber = byId("guardNumber").value;
 
   if (!/^\d{11}$/.test(digits) || !nombre) {
     reviewStatus.textContent = "Ingrese los 11 dígitos de la cédula y el nombre completo.";
+    return;
+  }
+
+  if (!guardName || !["1", "2"].includes(guardNumber)) {
+    reviewStatus.textContent = "Ingrese el nombre del guardia y seleccione su número.";
     return;
   }
 
@@ -245,16 +244,9 @@ async function saveEntry(event) {
   reviewStatus.textContent = "Guardando entrada…";
 
   try {
-    await staffReady;
+    await authReady;
 
-    if (!auth.currentUser) {
-      await auth.signInWithEmailAndPassword(
-        byId("staffEmail").value.trim(),
-        byId("staffPassword").value
-      );
-    }
-
-    updateStaffFields();
+    const user = auth.currentUser ?? (await auth.signInAnonymously()).user;
 
     // Reutiliza el ID del registro si el personal vuelve a intentar guardar.
     entryRef ??= db.collection("accesos_gloria").doc();
@@ -262,7 +254,9 @@ async function saveEntry(event) {
     await entryRef.set({
       cedula: formatCedula(digits),
       nombre,
-      staffUid: auth.currentUser.uid,
+      guardName,
+      guardNumber,
+      submitterUid: user.uid,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -270,14 +264,13 @@ async function saveEntry(event) {
     welcomeStatus.textContent = "¡Bienvenido! Entrada guardada.";
   } catch (error) {
     if (error.code === "permission-denied") {
-      reviewStatus.textContent = "Esta cuenta no tiene permiso para registrar entradas.";
+      reviewStatus.textContent = "Firebase rechazó el registro. Las reglas deben permitir crear entradas desde el enlace.";
     } else if (error.code?.startsWith("auth/")) {
-      reviewStatus.textContent = "No se pudo iniciar sesión. Revise la cuenta del personal.";
+      reviewStatus.textContent = "No se pudo conectar con Firebase. Verifique que el acceso anónimo esté habilitado.";
     } else {
       reviewStatus.textContent = "No se pudo confirmar el registro. Revise la conexión e intente de nuevo.";
     }
   } finally {
-    byId("staffPassword").value = "";
     saving = false;
     saveBtn.disabled = false;
     cancelReviewBtn.disabled = false;
