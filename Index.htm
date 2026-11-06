@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrada Finquita Gloria</title>
+    <script src="https://tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cloudflare.com">
+    <style>
+        body { font-family: sans-serif; touch-action: manipulation; }
+        .giant-btn { transform: scale(1); transition: transform 0.1s; }
+        .giant-btn:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="bg-slate-900 text-white flex flex-col items-center justify-between min-h-screen p-6 select-none">
+
+    <header class="text-center mt-4">
+        <h1 class="text-4xl md:text-6xl font-black text-yellow-400 tracking-wide drop-shadow-lg">🏡 FINQUITA GLORIA</h1>
+        <p class="text-xl md:text-2xl mt-2 text-slate-300 font-bold">¡Bienvenido! Pon tu cédula frente a la cámara</p>
+    </header>
+
+    <main class="w-full max-w-lg flex flex-col items-center justify-center flex-grow my-4">
+        <div class="relative w-full aspect-[4/3] bg-slate-800 rounded-3xl border-4 border-slate-700 overflow-hidden shadow-2xl flex items-center justify-center">
+            <video id="webcam" autoplay playsinline class="w-full h-full object-cover hidden"></video>
+            <div id="placeholder" class="text-center p-4">
+                <i class="fa-solid fa-id-card text-8xl text-slate-600 animate-pulse"></i>
+                <p class="text-slate-400 font-bold mt-4 text-lg">Cámara apagada</p>
+            </div>
+            <div id="overlay" class="absolute inset-0 border-[6px] border-dashed border-yellow-400 m-8 rounded-2xl hidden pointer-events-none"></div>
+        </div>
+
+        <div id="statusBanner" class="mt-4 text-center hidden">
+            <p id="statusText" class="text-2xl font-black text-green-400"></p>
+        </div>
+    </main>
+
+    <footer class="w-full max-w-lg mb-4 flex flex-col gap-4">
+        <button id="actionBtn" class="giant-btn w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-3xl md:text-4xl p-8 rounded-3xl shadow-lg shadow-emerald-900/50 flex items-center justify-center gap-4 border-b-8 border-emerald-700">
+            <i class="fa-solid fa-camera text-4xl md:text-5xl"></i>
+            <span id="btnText">¡FOTO AQUÍ!</span>
+        </button>
+
+        <button id="confirmBtn" class="giant-btn w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-3xl md:text-4xl p-8 rounded-3xl shadow-lg shadow-blue-900/50 flex items-center justify-center gap-4 border-b-8 border-blue-700 hidden">
+            <i class="fa-solid fa-cloud-arrow-up text-4xl md:text-5xl"></i>
+            <span>ENTRAR ✅</span>
+        </button>
+    </footer>
+
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
+    <script src="https://jsdelivr.net"></script>
+    <script src="app.js"></script>
+</body>
+</html>
