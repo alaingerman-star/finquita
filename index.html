@@ -3,86 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finquita Gloria - Acceso</title>
-    <!-- Tailwind CSS -->
+    <title>Finquita Gloria</title>
+    <!-- Tailwind CSS for precise structural positioning -->
     <script src="https://tailwindcss.com"></script>
-    <!-- FontAwesome for Icons -->
+    <!-- FontAwesome for the precise camera icon asset -->
     <link rel="stylesheet" href="https://cloudflare.com">
+    <!-- Google Fonts: Inter for crisp system UI text and Playfair for the brand font -->
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Inter:wght@600;700&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
+    
     <!-- Tesseract.js (OCR Engine) -->
     <script src="https://jsdelivr.net"></script>
-    <!-- Firebase SDK (Compat Version to match existing script style) -->
+    <!-- Firebase SDK Compat Core -->
     <script src="https://gstatic.com"></script>
     <script src="https://gstatic.com"></script>
-    
+
     <style>
-        .beach-bg {
-            background: url('https://unsplash.com') no-repeat center bottom;
-            background-size: cover;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7e6cc; /* Sandy background fallback */
+        }
+        .brand-title {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            color: #034b4b;
+        }
+        /* Custom colors pulled directly from your image asset */
+        .btn-teal {
+            background-color: #005a5b;
+        }
+        .btn-teal:hover {
+            background-color: #004647;
+        }
+        .btn-orange {
+            background-color: #d67b00;
+        }
+        .btn-orange:hover {
+            background-color: #b86a00;
         }
     </style>
 </head>
-<body class="beach-bg min-h-screen flex flex-col justify-between items-center p-6 text-white relative">
-    <!-- Subtle overlay to make UI elements pop over dynamic backgrounds -->
-    <div class="absolute inset-0 bg-amber-50/10 pointer-events-none"></div>
+<body class="min-h-screen w-full flex flex-col justify-between items-center relative overflow-hidden bg-cover bg-center select-none" style="background-image: url('https://unsplash.com');">
 
-    <!-- MAIN BRAND HEADER -->
-    <div class="z-10 w-full max-w-md flex flex-col items-center pt-8 text-center">
-        <!-- Logo Area Placeholder: Replace with actual graphic if available -->
-        <div class="relative w-40 h-40 flex items-center justify-center mb-2">
-            <span class="text-6xl">🌴</span>
-            <span class="text-3xl absolute bottom-6 right-4">☀️</span>
+    <!-- TOP BRAND SECTION -->
+    <div class="w-full flex flex-col items-center pt-16 text-center z-10 px-4">
+        <!-- Interactive Brand Illustration Elements -->
+        <div class="relative w-44 h-32 flex items-center justify-center mb-2">
+            <!-- Palm Tree Icon Wrapper -->
+            <span class="text-7xl absolute bottom-2 left-6 z-20 drop-shadow-sm transform -rotate-6">🌴</span>
+            <!-- Sun Graphic Backdrop -->
+            <div class="w-16 h-16 bg-amber-400 rounded-full absolute bottom-4 right-10 shadow-[0_0_20px_rgba(251,191,36,0.4)]"></div>
+            <!-- Abstract Graphic Waves under the sun -->
+            <div class="absolute bottom-1 w-24 h-4 overflow-hidden flex flex-col gap-0.5 opacity-80">
+                <div class="w-full h-1 bg-cyan-500 rounded-full transform translate-x-2"></div>
+                <div class="w-full h-1.5 bg-teal-600 rounded-full"></div>
+            </div>
         </div>
-        <h1 class="text-4xl font-extrabold tracking-wide drop-shadow-md text-[#085454]" style="font-family: serif;">
+        
+        <!-- Typography identical to graphic layout -->
+        <h1 class="text-5xl font-bold brand-title tracking-tight drop-shadow-sm">
             Finquita Gloria
         </h1>
-        <div class="w-32 h-1 bg-amber-500 rounded-full mt-2 shadow-sm"></div>
+        <!-- Elegant golden base swash line -->
+        <div class="w-40 h-1 bg-amber-500 rounded-full mt-3 opacity-90 shadow-sm"></div>
     </div>
 
-    <!-- INTERACTIVE SCREEN / WEBCAM ZONE -->
-    <div class="z-10 w-full max-w-sm my-auto flex flex-col items-center gap-4">
-        <!-- Camera Viewer Interface Box -->
-        <div class="relative w-full aspect-[4/3] bg-neutral-900/40 backdrop-blur-sm rounded-2xl overflow-hidden border-2 border-dashed border-emerald-600/40 flex items-center justify-center shadow-inner">
-            <video id="webcam" class="w-full h-full object-cover hidden transform -scale-x-100" autoplay playsinline></video>
-            <div id="placeholder" class="text-center p-4">
-                <i class="fa-solid fa-id-card text-5xl text-emerald-800/60 mb-2"></i>
-                <p class="text-sm font-semibold text-emerald-950/70">Cámara inactiva</p>
-            </div>
-            <!-- Overlay Mask to help align the Dominican ID Card -->
-            <div id="overlay" class="absolute inset-0 border-4 border-amber-500/50 rounded-xl m-8 pointer-events-none hidden flex items-center justify-center">
-                <span class="text-[10px] bg-amber-500 text-neutral-900 px-2 py-0.5 rounded font-bold uppercase tracking-wider absolute top-0 transform -translate-y-1/2">
-                    Encuadre la cédula aquí
-                </span>
+    
+    <div id="cameraContainer" class="absolute inset-0 bg-neutral-900/80 z-20 flex flex-col items-center justify-center p-6 hidden">
+        <div class="relative w-full max-w-sm aspect-[3/4] bg-black rounded-3xl overflow-hidden border-4 border-white/20 shadow-2xl">
+            <video id="webcam" class="w-full h-full object-cover transform -scale-x-100" autoplay playsinline></video>
+            <div id="overlay" class="absolute inset-0 border-4 border-dashed border-amber-400 m-8 rounded-xl pointer-events-none flex items-center justify-center">
+                <span class="text-xs bg-amber-400 text-neutral-900 px-3 py-1 font-bold rounded-md uppercase tracking-wider">Alinee la cédula</span>
             </div>
         </div>
-
-        <!-- NOTIFICATION / STATUS BANNER -->
-        <div id="statusBanner" class="w-full bg-[#085454]/90 backdrop-blur-sm border border-emerald-700 py-3 px-4 rounded-xl text-center shadow-md hidden transition-all duration-300">
-            <p id="statusText" class="text-sm font-medium tracking-wide flex items-center justify-center gap-2">
-                <!-- Status text changes dynamically via app.js -->
-            </p>
-        </div>
-
-        <!-- USER ACTION INTERFACE BUTTONS -->
-        <div class="w-full flex flex-col gap-4 mt-2">
-            <!-- Action / Camera Button (Styled precisely to match the design) -->
-            <button id="actionBtn" class="w-full bg-[#035151] hover:bg-[#023e3e] active:scale-[0.98] text-white font-bold text-xl py-4 px-6 rounded-2xl shadow-lg border-b-4 border-[#013535] flex items-center justify-center gap-3 transition-all duration-150">
-                <i class="fa-solid fa-camera text-2xl"></i>
-                <span id="btnText">Foto de cédula</span>
-            </button>
-
-            <!-- Success Entry Confirmation Button -->
-            <button id="confirmBtn" class="w-full bg-[#d67b00] hover:bg-[#b86900] active:scale-[0.98] text-white font-bold text-2xl py-4 px-6 rounded-2xl shadow-lg border-b-4 border-[#945500] text-center hidden transition-all duration-150">
-                Entrar
-            </button>
+        <!-- Status Banner Popup inside the overlay frame -->
+        <div id="statusBanner" class="w-full max-w-sm bg-[#005a5b] border border-teal-700 py-3 px-4 rounded-xl text-center shadow-lg mt-4 hidden">
+            <p id="statusText" class="text-sm font-medium tracking-wide text-white flex items-center justify-center gap-2"></p>
         </div>
     </div>
 
-    <!-- FOOTER COPYRIGHT STAMP -->
-    <div class="z-10 text-xs font-semibold text-emerald-950/60 tracking-wider pb-4">
-        &copy; 2026 Finquita Gloria • Control de Acceso
+    <!-- MAIN CONTROL BUTTON BLOCK -->
+    <div class="w-full max-w-md flex flex-col gap-5 px-8 pb-32 z-10">
+        
+        <!-- BUTTON 1: FOTO DE CÉDULA -->
+        <button id="actionBtn" class="w-full btn-teal text-white font-bold text-2xl py-5 px-6 rounded-[24px] shadow-[0_6px_16px_rgba(0,90,91,0.3)] flex items-center justify-center gap-4 transition-all duration-150 transform active:scale-[0.99]">
+            <i class="fa-solid fa-camera text-3xl"></i>
+            <span id="btnText">Foto de cédula</span>
+        </button>
+
+        <!-- BUTTON 2: ENTRAR -->
+        <button id="confirmBtn" class="w-full btn-orange text-white font-bold text-3xl py-5 px-6 rounded-[24px] shadow-[0_6px_16px_rgba(214,123,0,0.3)] text-center transition-all duration-150 transform active:scale-[0.99]">
+            Entrar
+        </button>
+        
     </div>
 
-    <!-- Application Script File Link -->
+    <!-- INJECTED APP SCRIPT LINK -->
     <script src="app.js"></script>
 </body>
 </html>
