@@ -1,105 +1,202 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finquita Gloria</title>
-    <!-- Tailwind CSS for precise structural positioning -->
-    <script src="https://tailwindcss.com"></script>
-    <!-- FontAwesome for the precise camera icon asset -->
-    <link rel="stylesheet" href="https://cloudflare.com">
-    <!-- Google Fonts: Inter for crisp system UI text and Playfair for the brand font -->
-    <link rel="preconnect" href="https://googleapis.com">
-    <link rel="preconnect" href="https://gstatic.com" crossorigin>
-    <link href="https://googleapis.com/css2?family=Inter:wght@600;700&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet">
-    
-    <!-- Tesseract.js (OCR Engine) -->
-    <script src="https://jsdelivr.net"></script>
-    <!-- Firebase SDK Compat Core -->
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Finquita Gloria</title>
 
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7e6cc; /* Sandy background fallback */
-        }
-        .brand-title {
-            font-family: 'Playfair Display', serif;
-            font-style: italic;
-            color: #034b4b;
-        }
-        /* Custom colors pulled directly from your image asset */
-        .btn-teal {
-            background-color: #005a5b;
-        }
-        .btn-teal:hover {
-            background-color: #004647;
-        }
-        .btn-orange {
-            background-color: #d67b00;
-        }
-        .btn-orange:hover {
-            background-color: #b86a00;
-        }
-    </style>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      background: #f7e6cc;
+      font-family: system-ui, sans-serif;
+    }
+
+    .welcome {
+      position: relative;
+      width: min(100vw, 70.37vh);
+      width: min(100vw, 70.37dvh);
+      aspect-ratio: 1052 / 1495;
+    }
+
+    .welcome img {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .welcome button {
+      position: absolute;
+      left: 6.84%;
+      width: 86.31%;
+      padding: 0;
+      border: 0;
+      border-radius: 4rem;
+      background: transparent;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .welcome button:active {
+      background: rgb(0 0 0 / 12%);
+    }
+
+    .welcome button:focus-visible {
+      outline: 4px solid white;
+      outline-offset: -8px;
+    }
+
+    #actionBtn {
+      top: 44.88%;
+      height: 12.84%;
+    }
+
+    #confirmBtn {
+      top: 60.87%;
+      height: 12.31%;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    #cameraContainer {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      overflow-y: auto;
+      background: #171717;
+      color: white;
+    }
+
+    .camera-preview {
+      position: relative;
+      flex-shrink: 0;
+      width: min(100%, 42rem);
+      height: min(58vh, 25rem);
+      height: min(58dvh, 25rem);
+      margin-top: auto;
+      overflow: hidden;
+      border-radius: 1rem;
+      background: black;
+    }
+
+    #webcam {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    #overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: min(78%, 62vh);
+      aspect-ratio: 1.59;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: end center;
+      padding: 0.5rem;
+      border: 3px dashed #ffc247;
+      border-radius: 0.75rem;
+      pointer-events: none;
+    }
+
+    #overlay span,
+    #statusBanner {
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      background: #005a5b;
+      text-align: center;
+    }
+
+    #statusText {
+      margin: 0;
+    }
+
+    .camera-controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: auto;
+    }
+
+    .camera-controls button {
+      min-height: 48px;
+      padding: 0.6rem 1rem;
+      border: 0;
+      border-radius: 0.65rem;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    #captureBtn {
+      background: #ffc247;
+      color: #171717;
+      font-weight: 700;
+    }
+  </style>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script defer src="./app.js"></script>
 </head>
-<body class="min-h-screen w-full flex flex-col justify-between items-center relative overflow-hidden bg-cover bg-center select-none" style="background-image: url('https://unsplash.com');">
 
-    <!-- TOP BRAND SECTION -->
-    <div class="w-full flex flex-col items-center pt-16 text-center z-10 px-4">
-        <!-- Interactive Brand Illustration Elements -->
-        <div class="relative w-44 h-32 flex items-center justify-center mb-2">
-            <!-- Palm Tree Icon Wrapper -->
-            <span class="text-7xl absolute bottom-2 left-6 z-20 drop-shadow-sm transform -rotate-6">🌴</span>
-            <!-- Sun Graphic Backdrop -->
-            <div class="w-16 h-16 bg-amber-400 rounded-full absolute bottom-4 right-10 shadow-[0_0_20px_rgba(251,191,36,0.4)]"></div>
-            <!-- Abstract Graphic Waves under the sun -->
-            <div class="absolute bottom-1 w-24 h-4 overflow-hidden flex flex-col gap-0.5 opacity-80">
-                <div class="w-full h-1 bg-cyan-500 rounded-full transform translate-x-2"></div>
-                <div class="w-full h-1.5 bg-teal-600 rounded-full"></div>
-            </div>
-        </div>
-        
-        <!-- Typography identical to graphic layout -->
-        <h1 class="text-5xl font-bold brand-title tracking-tight drop-shadow-sm">
-            Finquita Gloria
-        </h1>
-        <!-- Elegant golden base swash line -->
-        <div class="w-40 h-1 bg-amber-500 rounded-full mt-3 opacity-90 shadow-sm"></div>
+<body>
+  <main class="welcome" aria-label="Finquita Gloria">
+    <img src="./finquita-gloria.png" alt="" width="1052" height="1495">
+
+    <button id="actionBtn" type="button">
+      <span id="btnText" class="sr-only">Foto de cédula</span>
+    </button>
+
+    <button id="confirmBtn" type="button">
+      <span class="sr-only">Entrar</span>
+    </button>
+  </main>
+
+  <section id="cameraContainer" class="hidden" aria-label="Cámara para la cédula">
+    <div class="camera-preview">
+      <video id="webcam" autoplay playsinline muted></video>
+
+      <div id="overlay">
+        <span>Alinee la cédula dentro del marco</span>
+      </div>
     </div>
 
-    
-    <div id="cameraContainer" class="absolute inset-0 bg-neutral-900/80 z-20 flex flex-col items-center justify-center p-6 hidden">
-        <div class="relative w-full max-w-sm aspect-[3/4] bg-black rounded-3xl overflow-hidden border-4 border-white/20 shadow-2xl">
-            <video id="webcam" class="w-full h-full object-cover transform -scale-x-100" autoplay playsinline></video>
-            <div id="overlay" class="absolute inset-0 border-4 border-dashed border-amber-400 m-8 rounded-xl pointer-events-none flex items-center justify-center">
-                <span class="text-xs bg-amber-400 text-neutral-900 px-3 py-1 font-bold rounded-md uppercase tracking-wider">Alinee la cédula</span>
-            </div>
-        </div>
-        <!-- Status Banner Popup inside the overlay frame -->
-        <div id="statusBanner" class="w-full max-w-sm bg-[#005a5b] border border-teal-700 py-3 px-4 rounded-xl text-center shadow-lg mt-4 hidden">
-            <p id="statusText" class="text-sm font-medium tracking-wide text-white flex items-center justify-center gap-2"></p>
-        </div>
+    <div id="statusBanner" class="hidden" role="status">
+      <p id="statusText"></p>
     </div>
 
-    <!-- MAIN CONTROL BUTTON BLOCK -->
-    <div class="w-full max-w-md flex flex-col gap-5 px-8 pb-32 z-10">
-        
-        <!-- BUTTON 1: FOTO DE CÉDULA -->
-        <button id="actionBtn" class="w-full btn-teal text-white font-bold text-2xl py-5 px-6 rounded-[24px] shadow-[0_6px_16px_rgba(0,90,91,0.3)] flex items-center justify-center gap-4 transition-all duration-150 transform active:scale-[0.99]">
-            <i class="fa-solid fa-camera text-3xl"></i>
-            <span id="btnText">Foto de cédula</span>
-        </button>
-
-        <!-- BUTTON 2: ENTRAR -->
-        <button id="confirmBtn" class="w-full btn-orange text-white font-bold text-3xl py-5 px-6 rounded-[24px] shadow-[0_6px_16px_rgba(214,123,0,0.3)] text-center transition-all duration-150 transform active:scale-[0.99]">
-            Entrar
-        </button>
-        
+    <div class="camera-controls">
+      <button id="captureBtn" type="button">Tomar foto</button>
+      <button id="cancelCameraBtn" type="button">Cancelar</button>
     </div>
-
-    <!-- INJECTED APP SCRIPT LINK -->
-    <script src="app.js"></script>
+  </section>
 </body>
 </html>
