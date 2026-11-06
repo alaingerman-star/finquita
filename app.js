@@ -144,6 +144,22 @@ function extractNames(text) {
     }
   }
 
+  if (!fields.nombres && !fields.apellidos && extractCedula(text)) {
+    const isNameLine = (line) =>
+      /^[\p{L}][\p{L} ’'-]{1,119}$/u.test(line) &&
+      line.split(/\s+/).length >= 2 &&
+      !cardLabel.test(line) &&
+      ![...line.matchAll(nameLabel)].length &&
+      !/\b(?:JUNTA|CENTRAL|IDENTIDAD|DOMINICAN[AO]|SANTO DOMINGO|NO FIRMA)\b/i.test(line);
+    const pairs = lines.flatMap((line, index) => {
+      const bottom = lines[index + 1];
+      return bottom && isNameLine(line) && isNameLine(bottom) ? [[line, bottom]] : [];
+    });
+    if (pairs.length === 1) {
+      [fields.nombres, fields.apellidos] = pairs[0];
+    }
+  }
+
   return fields;
 }
 
