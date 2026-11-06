@@ -54,7 +54,7 @@ function closeCamera() {
   cameraDialog.close();
 }
 
-function openReview(cedula = "", hint = "Ingrese los datos de la cédula.") {
+function openReview(cedula = "", hint = "Ingrese los datos de la cédula.", names = {}) {
   welcomeStatus.textContent = "";
   reviewForm.reset();
   reviewStatus.textContent = "";
@@ -62,7 +62,9 @@ function openReview(cedula = "", hint = "Ingrese los datos de la cédula.") {
   byId("cedula").value = cedula;
   byId("reviewHint").textContent = hint;
   reviewDialog.showModal();
-  byId(cedula ? "guestName" : "cedula").focus();
+  byId("guestNames").value = names.nombres ?? "";
+  byId("guestSurnames").value = names.apellidos ?? "";
+  byId(cedula ? "guestNames" : "cedula").focus();
 }
 
 async function openCamera() {
@@ -122,12 +124,37 @@ function extractCedula(text) {
   return numbers.size === 1 ? formatCedula([...numbers][0]) : "";
 }
 
+function extractNames(text) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const fields = {};
+  const nameLabel = /\b(APELLIDOS?|NOMBRES?|SURNAMES?|GIVEN NAMES?)\b(?:\s*\/\s*(?:SURNAMES?|GIVEN NAMES?))?\s*[:.–-]?\s*/gi;
+  const cardLabel = /\b(?:FECHA|LUGAR|NACIMIENTO|NACIONALIDAD|SEXO|ESTADO CIVIL|OCUPACI[ÓO]N|VENCIMIENTO|SANGRE|C[ÉE]DULA|REPUBLICA|REPÚBLICA|ELECTORAL|FIRMA)\b/i;
+
+  for (const [index, line] of lines.entries()) {
+    const labels = [...line.matchAll(nameLabel)];
+    for (const [position, label] of labels.entries()) {
+      const next = labels[position + 1];
+      const inline = line.slice(label.index + label[0].length, next?.index).trim();
+      const value = inline || (!next ? lines[index + 1] : "");
+      if (!value || cardLabel.test(value) || [...value.matchAll(nameLabel)].length ||
+          !/^[\p{L}][\p{L} '\u2019-]{1,119}$/u.test(value)) continue;
+
+      const field = /APELLIDO|SURNAME/i.test(label[1]) ? "apellidos" : "nombres";
+      fields[field] ??= value;
+    }
+  }
+
+  return fields;
+}
+
 async function readCedula(worker, photo, session) {
   const rotated = document.createElement("canvas");
+  let best = {};
+  let bestScore = 0;
 
   try {
     for (const degrees of [0, 90, 270, 180]) {
-      if (session !== cameraSession) return "";
+      if (session !== cameraSession) return {};
 
       let image = photo;
       if (degrees !== 0) {
@@ -144,10 +171,17 @@ async function readCedula(worker, photo, session) {
 
       const { data } = await worker.recognize(image);
       const cedula = extractCedula(data.text);
-      if (cedula) return cedula;
+      const result = { cedula, ...extractNames(data.text) };
+      const score = (cedula ? 4 : 0) +
+        Number(Boolean(result.nombres)) + Number(Boolean(result.apellidos));
+      if (score > bestScore) {
+        best = result;
+        bestScore = score;
+      }
+      if (score === 6) break;
     }
 
-    return "";
+    return best;
   } finally {
     rotated.width = 0;
     rotated.height = 0;
@@ -193,14 +227,13 @@ async function captureAndScan() {
     worker = await Tesseract.createWorker("spa");
     if (session !== cameraSession) return;
 
-    const cedula = await readCedula(worker, canvas, session);
+    const result = await readCedula(worker, canvas, session);
     if (session !== cameraSession) return;
     closeCamera();
     openReview(
-      cedula,
-      cedula
-        ? "Compare el número con la cédula y escriba el nombre completo."
-        : "No se pudo identificar un número con claridad. Ingréselo manualmente."
+      result.cedula,
+      "Compare los datos con la cédula y complete lo que falte.",
+      result
     );
   } catch {
     if (session !== cameraSession) return;
@@ -219,11 +252,12 @@ async function saveEntry(event) {
 
   const cedulaInput = byId("cedula").value.trim();
   const digits = cedulaInput.replace(/[\s-]/g, "");
-  const nombre = byId("guestName").value.trim();
+  const nombres = byId("guestNames").value.trim();
+  const apellidos = byId("guestSurnames").value.trim();
   const guardName = byId("guardName").value.trim();
   const guardNumber = byId("guardNumber").value;
 
-  if (!/^\d{11}$/.test(digits) || !nombre) {
+  if (!/^\d{11}$/.test(digits) || !nombres || !apellidos) {
     reviewStatus.textContent = "Ingrese los 11 dígitos de la cédula y el nombre completo.";
     return;
   }
@@ -253,7 +287,9 @@ async function saveEntry(event) {
 
     await entryRef.set({
       cedula: formatCedula(digits),
-      nombre,
+      nombre: `${nombres} ${apellidos}`,
+      nombres,
+      apellidos,
       guardName,
       guardNumber,
       submitterUid: user.uid,
