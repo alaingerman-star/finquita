@@ -77,11 +77,9 @@
 
     .camera-preview {
       position: relative;
-      flex-shrink: 0;
-      width: min(100%, 42rem);
-      height: min(58vh, 25rem);
-      height: min(58dvh, 25rem);
-      margin-top: auto;
+      width: min(100%, 108dvh);
+      aspect-ratio: 16 / 10;
+      margin: 0 auto;
       overflow: hidden;
       border-radius: 1rem;
       background: black;
@@ -91,14 +89,14 @@
       display: block;
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
     }
 
     #overlay {
       position: absolute;
       top: 50%;
       left: 50%;
-      width: min(78%, 62vh);
+      width: 90%;
       aspect-ratio: 1.59;
       transform: translate(-50%, -50%);
       display: grid;
@@ -144,7 +142,12 @@
     dialog h2 { margin-top: 0; }
     dialog label { display: grid; gap: .35rem; margin: .75rem 0; }
     dialog input { width: 100%; padding: .7rem; font: inherit; }
-    dialog .camera-preview { height: min(45dvh, 22rem); margin: 0 auto; }
+    #cameraDialog {
+      box-sizing: border-box;
+      width: min(98vw, 64rem);
+      max-width: 98vw;
+      padding: clamp(.5rem, 2vw, 1rem);
+    }
     dialog .camera-controls { margin: 1rem 0 0; }
     dialog button:disabled { opacity: .55; }
     #welcomeStatus { position: fixed; bottom: 1rem; margin: 0; padding: .65rem 1rem; background: #005a5b; color: white; border-radius: .6rem; }

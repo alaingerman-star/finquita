@@ -129,22 +129,37 @@ function extractCedula(text) {
 }
 
 async function captureAndScan() {
-  if (!cameraStream || !video.videoWidth || !video.videoHeight) {
+  if (!cameraStream || !video.videoWidth || !video.videoHeight ||
+      !video.clientWidth || !video.clientHeight) {
     cameraStatus.textContent = "Espere a que aparezca la imagen de la cámara.";
     return;
   }
 
   const session = cameraSession;
   const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  // Use the same centered crop that object-fit: cover shows on screen.
+  const previewRatio = video.clientWidth / video.clientHeight;
+  const frameWidth = video.videoWidth;
+  const frameHeight = video.videoHeight;
+  canvas.width = Math.min(frameWidth, Math.round(frameHeight * previewRatio));
+  canvas.height = Math.min(frameHeight, Math.round(frameWidth / previewRatio));
   captureBtn.disabled = true;
   cameraStatus.textContent = "Leyendo la cédula…";
 
   let worker;
 
   try {
-    canvas.getContext("2d").drawImage(video, 0, 0);
+    canvas.getContext("2d").drawImage(
+      video,
+      (frameWidth - canvas.width) / 2,
+      (frameHeight - canvas.height) / 2,
+      canvas.width,
+      canvas.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
     stopCamera();
 
     if (!window.Tesseract) throw new Error("OCR no disponible");
