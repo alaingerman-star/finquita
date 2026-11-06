@@ -194,8 +194,20 @@ async function readCedula(worker, photo, session) {
     cameraStatus.textContent = "Buscando nombres y apellidos…";
     await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT });
     if (session !== cameraSession) return {};
-    const { data } = await worker.recognize(orient(bestDegrees));
-    record(data.text, bestDegrees, best);
+    const image = orient(bestDegrees);
+    const enhanced = document.createElement("canvas");
+    enhanced.width = image.width;
+    enhanced.height = image.height;
+    try {
+      const context = enhanced.getContext("2d");
+      context.filter = "grayscale(1) contrast(1.35)";
+      context.drawImage(image, 0, 0);
+      const { data } = await worker.recognize(enhanced);
+      record(data.text, bestDegrees, best);
+    } finally {
+      enhanced.width = 0;
+      enhanced.height = 0;
+    }
 
     return best;
   } finally {
@@ -213,12 +225,21 @@ async function captureAndScan() {
 
   const session = cameraSession;
   const canvas = document.createElement("canvas");
-  // Use the same centered crop that object-fit: cover shows on screen.
-  const previewRatio = video.clientWidth / video.clientHeight;
-  const frameWidth = video.videoWidth;
-  const frameHeight = video.videoHeight;
-  canvas.width = Math.min(frameWidth, Math.round(frameHeight * previewRatio));
-  canvas.height = Math.min(frameHeight, Math.round(frameWidth / previewRatio));
+  const preview = video.getBoundingClientRect();
+  const frame = guide.getBoundingClientRect();
+  const scale = Math.max(preview.width / video.videoWidth, preview.height / video.videoHeight);
+  const visibleWidth = preview.width / scale;
+  const visibleHeight = preview.height / scale;
+  const margin = Math.min(frame.width, frame.height) * 0.08;
+  const left = Math.max(0, frame.left - preview.left - margin);
+  const top = Math.max(0, frame.top - preview.top - margin);
+  const right = Math.min(preview.width, frame.right - preview.left + margin);
+  const bottom = Math.min(preview.height, frame.bottom - preview.top + margin);
+  const cropWidth = (right - left) / scale;
+  const cropHeight = (bottom - top) / scale;
+  const enlargement = Math.max(1, 1400 / Math.max(cropWidth, cropHeight));
+  canvas.width = Math.round(cropWidth * enlargement);
+  canvas.height = Math.round(cropHeight * enlargement);
   captureBtn.disabled = true;
   cameraStatus.textContent = "Leyendo la cédula…";
 
@@ -227,10 +248,10 @@ async function captureAndScan() {
   try {
     canvas.getContext("2d").drawImage(
       video,
-      (frameWidth - canvas.width) / 2,
-      (frameHeight - canvas.height) / 2,
-      canvas.width,
-      canvas.height,
+      (video.videoWidth - visibleWidth) / 2 + left / scale,
+      (video.videoHeight - visibleHeight) / 2 + top / scale,
+      cropWidth,
+      cropHeight,
       0,
       0,
       canvas.width,
@@ -248,7 +269,7 @@ async function captureAndScan() {
     closeCamera();
     openReview(
       result.cedula,
-      "Compare los datos con la cédula y complete lo que falte.",
+      "Compare los datos con la cédula. Si falta algo, puede corregirlo o repetir la foto.",
       result
     );
   } catch {
@@ -291,6 +312,7 @@ async function saveEntry(event) {
   saving = true;
   saveBtn.disabled = true;
   cancelReviewBtn.disabled = true;
+  byId("retakeBtn").disabled = true;
   reviewStatus.textContent = "Guardando entrada…";
 
   try {
@@ -326,6 +348,7 @@ async function saveEntry(event) {
     saving = false;
     saveBtn.disabled = false;
     cancelReviewBtn.disabled = false;
+    byId("retakeBtn").disabled = false;
   }
 }
 
@@ -349,6 +372,10 @@ cameraDialog.addEventListener("cancel", (event) => {
 });
 
 reviewForm.addEventListener("submit", saveEntry);
+byId("retakeBtn").addEventListener("click", () => {
+  reviewDialog.close();
+  openCamera();
+});
 byId("cancelReviewBtn").addEventListener("click", () => reviewDialog.close());
 reviewDialog.addEventListener("cancel", (event) => {
   if (saving) event.preventDefault();
