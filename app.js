@@ -151,35 +151,51 @@ async function readCedula(worker, photo, session) {
   const rotated = document.createElement("canvas");
   let best = {};
   let bestScore = 0;
+  let bestDegrees = 0;
+
+  function record(text, degrees, previous = {}) {
+    const result = { cedula: extractCedula(text), ...extractNames(text) };
+    if (!result.cedula || result.cedula === previous.cedula) {
+      for (const field of ["cedula", "nombres", "apellidos"]) {
+        result[field] ||= previous[field];
+      }
+    }
+    const score = (result.cedula ? 4 : 0) +
+      Number(Boolean(result.nombres)) + Number(Boolean(result.apellidos));
+    if (score > bestScore) {
+      best = result;
+      bestScore = score;
+      bestDegrees = degrees;
+    }
+  }
+
+  function orient(degrees) {
+    if (!degrees) return photo;
+    const sideways = degrees !== 180;
+    rotated.width = sideways ? photo.height : photo.width;
+    rotated.height = sideways ? photo.width : photo.height;
+    const context = rotated.getContext("2d");
+    context.translate(rotated.width / 2, rotated.height / 2);
+    context.rotate(degrees * Math.PI / 180);
+    context.drawImage(photo, -photo.width / 2, -photo.height / 2);
+    return rotated;
+  }
 
   try {
     for (const degrees of [0, 90, 270, 180]) {
       if (session !== cameraSession) return {};
-
-      let image = photo;
-      if (degrees !== 0) {
-        const sideways = degrees !== 180;
-        rotated.width = sideways ? photo.height : photo.width;
-        rotated.height = sideways ? photo.width : photo.height;
-        const context = rotated.getContext("2d");
-        context.translate(rotated.width / 2, rotated.height / 2);
-        context.rotate(degrees * Math.PI / 180);
-        context.drawImage(photo, -photo.width / 2, -photo.height / 2);
-        image = rotated;
-        cameraStatus.textContent = "Buscando el número en otra orientación…";
-      }
-
-      const { data } = await worker.recognize(image);
-      const cedula = extractCedula(data.text);
-      const result = { cedula, ...extractNames(data.text) };
-      const score = (cedula ? 4 : 0) +
-        Number(Boolean(result.nombres)) + Number(Boolean(result.apellidos));
-      if (score > bestScore) {
-        best = result;
-        bestScore = score;
-      }
-      if (score === 6) break;
+      if (degrees) cameraStatus.textContent = "Buscando datos en otra orientación…";
+      const { data } = await worker.recognize(orient(degrees));
+      record(data.text, degrees);
+      if (bestScore === 6) return best;
     }
+
+    if (session !== cameraSession) return {};
+    cameraStatus.textContent = "Buscando nombres y apellidos…";
+    await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT });
+    if (session !== cameraSession) return {};
+    const { data } = await worker.recognize(orient(bestDegrees));
+    record(data.text, bestDegrees, best);
 
     return best;
   } finally {
