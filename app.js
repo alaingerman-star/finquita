@@ -1,7 +1,6 @@
-// --- CONFIGURACIÓN DE FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyAv06T4Kkww3Ezph9mPUIPCxPg8hyNSm2E",
-  authDomain: "://firebaseapp.com",
+  authDomain: "finquitas-gloria.firebaseapp.com",
   projectId: "finquitas-gloria",
   storageBucket: "finquitas-gloria.firebasestorage.app",
   messagingSenderId: "14798500087",
@@ -9,161 +8,260 @@ const firebaseConfig = {
   measurementId: "G-GS3WT1P3GX"
 };
 
-// Conectar con la base de datos de la nube
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const byId = (id) => document.getElementById(id);
+const cameraDialog = byId("cameraDialog");
+const reviewDialog = byId("reviewDialog");
+const reviewForm = byId("reviewForm");
+const video = byId("webcam");
+const captureBtn = byId("captureBtn");
+const saveBtn = byId("saveBtn");
+const cancelReviewBtn = byId("cancelReviewBtn");
+const cameraStatus = byId("cameraStatus");
+const reviewStatus = byId("reviewStatus");
+const welcomeStatus = byId("welcomeStatus");
+const staffFields = byId("staffFields");
 
-// Elementos de la interfaz recuperados del DOM
-const video = document.getElementById('webcam');
-const placeholder = document.getElementById('placeholder');
-const overlay = document.getElementById('overlay');
-const actionBtn = document.getElementById('actionBtn');
-const btnText = document.getElementById('btnText');
-const confirmBtn = document.getElementById('confirmBtn');
-const statusBanner = document.getElementById('statusBanner');
-const statusText = document.getElementById('statusText');
+let auth;
+let db;
+let staffReady;
+let cameraStream;
+let cameraSession = 0;
+let saving = false;
+let entryRef = null;
 
-let streamInstance = null;
-let currentAppMode = "START"; // MODOS DEL SISTEMA: START, READY_TO_SNAP, CONFIRM
-let lastParsedData = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
 
-// 1. INICIALIZAR Y ACTIVAR LA CÁMARA TRAS EL PRIMER CLIC
-async function startAccessCamera() {
-    try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error("Su navegador bloquea el acceso a la cámara o requiere conexión segura HTTPS.");
-        }
-
-        streamInstance = await navigator.mediaDevices.getUserMedia({
-            video: { 
-                facingMode: "environment", // Prioriza el uso de la cámara trasera en móviles/tabletas
-                width: { ideal: 1280 }, 
-                height: { ideal: 720 } 
-            }
-        });
-        
-        video.srcObject = streamInstance;
-        video.classList.remove('hidden');
-        if (placeholder) placeholder.classList.add('hidden');
-        if (overlay) overlay.classList.remove('hidden');
-        
-        // Modifica la apariencia del botón para preparar la captura
-        btnText.innerText = "¡TOMAR FOTO!";
-        actionBtn.classList.replace('bg-[#035151]', 'bg-amber-600');
-        actionBtn.classList.replace('border-[#013535]', 'border-amber-800');
-        
-        currentAppMode = "READY_TO_SNAP";
-    } catch (err) {
-        console.error("Camera Error: ", err);
-        alert("Fallo de cámara: " + err.message + "\n\nPor favor verifique los permisos de su navegador.");
-    }
+  // Conserva la sesión del personal solo mientras la pestaña esté abierta.
+  staffReady = auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+  staffReady.catch(() => {});
+} catch {
+  welcomeStatus.textContent = "Firebase no está disponible. Puede revisar los datos sin guardarlos.";
 }
 
-// 2. CAPTURAR EL FOTOGRAMA ACTUAL E INICIAR EL RECONOCIMIENTO ÓPTICO (OCR)
-async function captureAndScanID() {
-    statusBanner.classList.remove('hidden');
-    statusText.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Procesando Imagen...`;
-    actionBtn.classList.add('opacity-50', 'pointer-events-none');
-
-    try {
-        const canvas = document.createElement('canvas');
-        // Fallback a dimensiones estándar si el feed de video no ha cargado completamente la metadata
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-        
-        const ctx = canvas.getContext('2d');
-        // Dibuja el fotograma de video exacto dentro del elemento canvas en memoria
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Envía el canvas generado a Tesseract con paquete de idioma configurado en Español
-        Tesseract.recognize(canvas, 'spa')
-            .then(({ data: { text } }) => {
-                parseDominicanIDText(text);
-            })
-            .catch(err => {
-                console.error("OCR Error: ", err);
-                statusText.innerText = "Error leyendo datos. Reintente el escaneo.";
-                resetInterfaceState();
-            });
-    } catch (err) {
-        console.error("Capture Error: ", err);
-        statusText.innerText = "Fallo crítico al capturar el flujo de video.";
-        resetInterfaceState();
-    }
+function stopCamera() {
+  cameraStream?.getTracks().forEach((track) => track.stop());
+  cameraStream = null;
+  video.srcObject = null;
 }
 
-// 3. EXTRACCIÓN MEDIANTE EXPRESIONES REGULARES PARA BUSCAR CÉDULAS DOMINICANAS
-function parseDominicanIDText(rawText) {
-    // Busca el formato estándar de cédula dominicana: 3 dígitos - 7 dígitos - 1 dígito
-    const cedulaRegex = /\d{3}-\d{7}-\d{1}/;
-    const foundCedula = rawText.match(cedulaRegex);
-
-    lastParsedData = {
-        cedula: foundCedula ? foundCedula[0] : "No detectada (Ingreso manual)",
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    };
-
-    statusText.innerText = `Identificación: ${lastParsedData.cedula}`;
-    
-    // Oculta el control primario de la cámara y despliega el botón "Entrar" naranja
-    actionBtn.classList.add('hidden');
-    confirmBtn.classList.remove('hidden');
-    currentAppMode = "CONFIRM";
+function closeCamera() {
+  cameraSession += 1;
+  stopCamera();
+  cameraDialog.close();
 }
 
-// 4. ALMACENAMIENTO DE DATOS EN LA COLECCIÓN DE FIRESTORE
-async function saveEntryToCloud() {
-    confirmBtn.classList.add('opacity-50', 'pointer-events-none');
-    statusText.innerHTML = `<i class="fa-solid fa-cloud-arrow-up animate-bounce"></i> Registrando Acceso...`;
-
-    try {
-        await db.collection("accesos_gloria").add(lastParsedData);
-        statusText.innerHTML = "🎉 ¡BIENVENIDO! Acceso Guardado con Éxito.";
-        
-        // Pausa de 3 segundos para confirmación visual antes de restablecer
-        setTimeout(() => {
-            resetInterfaceState();
-        }, 3000); 
-    } catch (error) {
-        console.error("Database Error: ", error);
-        alert("Error de red: No se pudo subir el registro de entrada a Firebase.");
-        confirmBtn.classList.remove('opacity-50', 'pointer-events-none');
-    }
+function updateStaffFields() {
+  const needsLogin = !auth?.currentUser;
+  staffFields.hidden = !needsLogin;
+  staffFields.disabled = !needsLogin;
 }
 
-// RESTABLECIMIENTO TOTAL DEL FLUJO Y RE-ESTILIZACIÓN DE BOTONES
-function resetInterfaceState() {
-    confirmBtn.classList.add('hidden');
-    confirmBtn.classList.remove('opacity-50', 'pointer-events-none');
-    
-    actionBtn.classList.remove('hidden', 'opacity-50', 'pointer-events-none');
-    // Devuelve los estilos originales de Tailwind al estado de carga inicial
-    actionBtn.className = "w-full bg-[#035151] hover:bg-[#023e3e] active:scale-[0.98] text-white font-bold text-xl py-4 px-6 rounded-2xl shadow-lg border-b-4 border-[#013535] flex items-center justify-center gap-3 transition-all duration-150";
-    
-    statusBanner.classList.add('hidden');
-    btnText.innerText = "Foto de cédula";
-    currentAppMode = "START"; 
-    
-    // Apaga el flujo de hardware para liberar recursos si el usuario sale de la pantalla
-    if (streamInstance) {
-        streamInstance.getTracks().forEach(track => track.stop());
-        video.classList.add('hidden');
-        if (placeholder) placeholder.classList.remove('hidden');
-        if (overlay) overlay.classList.add('hidden');
-    }
+function openReview(cedula = "", hint = "Ingrese los datos de la cédula.") {
+  welcomeStatus.textContent = "";
+  reviewForm.reset();
+  reviewStatus.textContent = "";
+  entryRef = null;
+  byId("cedula").value = cedula;
+  byId("reviewHint").textContent = hint;
+  updateStaffFields();
+  reviewDialog.showModal();
+  byId(cedula ? "guestName" : "cedula").focus();
 }
 
-// ENLACES DE EVENTOS DE ACCIÓN DEL USUARIO
-actionBtn.addEventListener('click', () => {
-    if (currentAppMode === "START") {
-        startAccessCamera();
-    } else if (currentAppMode === "READY_TO_SNAP") {
-        captureAndScanID();
+async function openCamera() {
+  welcomeStatus.textContent = "";
+  captureBtn.disabled = true;
+  cameraStatus.textContent = "Abriendo la cámara…";
+  cameraDialog.showModal();
+  const session = ++cameraSession;
+
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("La cámara requiere una página HTTPS y un navegador compatible.");
     }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    });
+
+    if (session !== cameraSession) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+
+    cameraStream = stream;
+    video.srcObject = stream;
+    await video.play();
+
+    if (session === cameraSession) {
+      captureBtn.disabled = false;
+      cameraStatus.textContent = "Evite reflejos y mantenga la cédula fija.";
+    }
+  } catch {
+    if (session !== cameraSession) return;
+    stopCamera();
+    cameraStatus.textContent =
+      "No se pudo abrir la cámara. Revise los permisos o ingrese los datos manualmente.";
+  }
+}
+
+function formatCedula(digits) {
+  return `${digits.slice(0, 3)}-${digits.slice(3, 10)}-${digits.slice(10)}`;
+}
+
+function extractCedula(text) {
+  const candidates = text.matchAll(
+    /(?<!\d)(\d{3})[ \t\-–—]*(\d{7})[ \t\-–—]*(\d)(?!\d)/g
+  );
+  const numbers = new Set(
+    Array.from(candidates, (match) => match.slice(1).join(""))
+  );
+
+  return numbers.size === 1 ? formatCedula([...numbers][0]) : "";
+}
+
+async function captureAndScan() {
+  if (!cameraStream || !video.videoWidth || !video.videoHeight) {
+    cameraStatus.textContent = "Espere a que aparezca la imagen de la cámara.";
+    return;
+  }
+
+  const session = cameraSession;
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  captureBtn.disabled = true;
+  cameraStatus.textContent = "Leyendo la cédula…";
+
+  let worker;
+
+  try {
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    stopCamera();
+
+    if (!window.Tesseract) throw new Error("OCR no disponible");
+
+    worker = await Tesseract.createWorker("spa");
+    if (session !== cameraSession) return;
+
+    const { data } = await worker.recognize(canvas);
+    if (session !== cameraSession) return;
+
+    const cedula = extractCedula(data.text);
+    closeCamera();
+    openReview(
+      cedula,
+      cedula
+        ? "Compare el número con la cédula y escriba el nombre completo."
+        : "No se pudo identificar un número con claridad. Ingréselo manualmente."
+    );
+  } catch {
+    if (session !== cameraSession) return;
+    closeCamera();
+    openReview("", "No se pudo leer la foto. Ingrese los datos manualmente.");
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+    await worker?.terminate().catch(() => {});
+  }
+}
+
+async function saveEntry(event) {
+  event.preventDefault();
+  if (saving) return;
+
+  const cedulaInput = byId("cedula").value.trim();
+  const digits = cedulaInput.replace(/[\s-]/g, "");
+  const nombre = byId("guestName").value.trim();
+
+  if (!/^\d{11}$/.test(digits) || !nombre) {
+    reviewStatus.textContent = "Ingrese los 11 dígitos de la cédula y el nombre completo.";
+    return;
+  }
+
+  if (!auth || !db) {
+    reviewStatus.textContent = "Firebase no está disponible. La entrada sigue pendiente.";
+    return;
+  }
+
+  saving = true;
+  saveBtn.disabled = true;
+  cancelReviewBtn.disabled = true;
+  reviewStatus.textContent = "Guardando entrada…";
+
+  try {
+    await staffReady;
+
+    if (!auth.currentUser) {
+      await auth.signInWithEmailAndPassword(
+        byId("staffEmail").value.trim(),
+        byId("staffPassword").value
+      );
+    }
+
+    updateStaffFields();
+
+    // Reutiliza el ID del registro si el personal vuelve a intentar guardar.
+    entryRef ??= db.collection("accesos_gloria").doc();
+
+    await entryRef.set({
+      cedula: formatCedula(digits),
+      nombre,
+      staffUid: auth.currentUser.uid,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    reviewDialog.close();
+    welcomeStatus.textContent = "¡Bienvenido! Entrada guardada.";
+  } catch (error) {
+    if (error.code === "permission-denied") {
+      reviewStatus.textContent = "Esta cuenta no tiene permiso para registrar entradas.";
+    } else if (error.code?.startsWith("auth/")) {
+      reviewStatus.textContent = "No se pudo iniciar sesión. Revise la cuenta del personal.";
+    } else {
+      reviewStatus.textContent = "No se pudo confirmar el registro. Revise la conexión e intente de nuevo.";
+    }
+  } finally {
+    byId("staffPassword").value = "";
+    saving = false;
+    saveBtn.disabled = false;
+    cancelReviewBtn.disabled = false;
+  }
+}
+
+byId("actionBtn").addEventListener("click", openCamera);
+byId("confirmBtn").addEventListener("click", () => openReview());
+captureBtn.addEventListener("click", captureAndScan);
+byId("cancelCameraBtn").addEventListener("click", closeCamera);
+byId("manualBtn").addEventListener("click", () => {
+  closeCamera();
+  openReview();
 });
 
-confirmBtn.addEventListener('click', () => {
-    if (currentAppMode === "CONFIRM") {
-        saveEntryToCloud();
-    }
+cameraDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeCamera();
+});
+
+reviewForm.addEventListener("submit", saveEntry);
+byId("cancelReviewBtn").addEventListener("click", () => reviewDialog.close());
+reviewDialog.addEventListener("cancel", (event) => {
+  if (saving) event.preventDefault();
+});
+reviewDialog.addEventListener("close", () => {
+  reviewForm.reset();
+  entryRef = null;
+});
+
+window.addEventListener("pagehide", () => {
+  cameraSession += 1;
+  stopCamera();
 });
