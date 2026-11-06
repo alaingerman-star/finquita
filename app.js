@@ -14,6 +14,8 @@ const reviewDialog = byId("reviewDialog");
 const reviewForm = byId("reviewForm");
 const video = byId("webcam");
 const captureBtn = byId("captureBtn");
+const rotateGuideBtn = byId("rotateGuideBtn");
+const guide = byId("overlay");
 const saveBtn = byId("saveBtn");
 const cancelReviewBtn = byId("cancelReviewBtn");
 const cameraStatus = byId("cameraStatus");
@@ -128,6 +130,38 @@ function extractCedula(text) {
   return numbers.size === 1 ? formatCedula([...numbers][0]) : "";
 }
 
+async function readCedula(worker, photo, session) {
+  const rotated = document.createElement("canvas");
+
+  try {
+    for (const degrees of [0, 90, 270, 180]) {
+      if (session !== cameraSession) return "";
+
+      let image = photo;
+      if (degrees !== 0) {
+        const sideways = degrees !== 180;
+        rotated.width = sideways ? photo.height : photo.width;
+        rotated.height = sideways ? photo.width : photo.height;
+        const context = rotated.getContext("2d");
+        context.translate(rotated.width / 2, rotated.height / 2);
+        context.rotate(degrees * Math.PI / 180);
+        context.drawImage(photo, -photo.width / 2, -photo.height / 2);
+        image = rotated;
+        cameraStatus.textContent = "Buscando el número en otra orientación…";
+      }
+
+      const { data } = await worker.recognize(image);
+      const cedula = extractCedula(data.text);
+      if (cedula) return cedula;
+    }
+
+    return "";
+  } finally {
+    rotated.width = 0;
+    rotated.height = 0;
+  }
+}
+
 async function captureAndScan() {
   if (!cameraStream || !video.videoWidth || !video.videoHeight ||
       !video.clientWidth || !video.clientHeight) {
@@ -167,10 +201,8 @@ async function captureAndScan() {
     worker = await Tesseract.createWorker("spa");
     if (session !== cameraSession) return;
 
-    const { data } = await worker.recognize(canvas);
+    const cedula = await readCedula(worker, canvas, session);
     if (session !== cameraSession) return;
-
-    const cedula = extractCedula(data.text);
     closeCamera();
     openReview(
       cedula,
@@ -255,6 +287,11 @@ async function saveEntry(event) {
 byId("actionBtn").addEventListener("click", openCamera);
 byId("confirmBtn").addEventListener("click", () => openReview());
 captureBtn.addEventListener("click", captureAndScan);
+rotateGuideBtn.addEventListener("click", () => {
+  const vertical = guide.toggleAttribute("data-vertical");
+  rotateGuideBtn.setAttribute("aria-pressed", String(vertical));
+  rotateGuideBtn.textContent = vertical ? "Marco horizontal" : "Marco vertical";
+});
 byId("cancelCameraBtn").addEventListener("click", closeCamera);
 byId("manualBtn").addEventListener("click", () => {
   closeCamera();

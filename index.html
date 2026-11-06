@@ -148,6 +148,17 @@
       max-width: 98vw;
       padding: clamp(.5rem, 2vw, 1rem);
     }
+    @media (orientation: portrait) {
+      .camera-preview { aspect-ratio: 4 / 5; width: min(100%, 48dvh); }
+      #overlay { width: 90%; }
+    }
+
+    #overlay[data-vertical] {
+      width: auto;
+      height: 90%;
+      aspect-ratio: 1 / 1.59;
+    }
+
     dialog .camera-controls { margin: 1rem 0 0; }
     dialog button:disabled { opacity: .55; }
     #welcomeStatus { position: fixed; bottom: 1rem; margin: 0; padding: .65rem 1rem; background: #005a5b; color: white; border-radius: .6rem; }
@@ -185,6 +196,7 @@
     <p id="cameraStatus" role="status"></p>
     <div class="camera-controls">
       <button id="captureBtn" type="button" disabled>Tomar foto</button>
+      <button id="rotateGuideBtn" type="button" aria-pressed="false">Marco vertical</button>
       <button id="manualBtn" type="button">Ingresar manualmente</button>
       <button id="cancelCameraBtn" type="button">Cancelar</button>
     </div>
