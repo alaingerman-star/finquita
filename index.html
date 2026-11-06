@@ -73,23 +73,7 @@
       white-space: nowrap;
     }
 
-    .hidden {
-      display: none !important;
-    }
 
-    #cameraContainer {
-      position: fixed;
-      inset: 0;
-      z-index: 2;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem;
-      overflow-y: auto;
-      background: #171717;
-      color: white;
-    }
 
     .camera-preview {
       position: relative;
@@ -125,17 +109,13 @@
       pointer-events: none;
     }
 
-    #overlay span,
-    #statusBanner {
+    #overlay span {
       padding: 0.5rem 0.75rem;
       border-radius: 0.5rem;
       background: #005a5b;
       text-align: center;
     }
 
-    #statusText {
-      margin: 0;
-    }
 
     .camera-controls {
       display: flex;
@@ -159,17 +139,28 @@
       color: #171717;
       font-weight: 700;
     }
+    dialog { width: min(92vw, 34rem); max-height: 92dvh; border: 0; border-radius: 1rem; padding: 1.25rem; background: #fffaf1; color: #123b3b; }
+    dialog::backdrop { background: #000b; }
+    dialog h2 { margin-top: 0; }
+    dialog label { display: grid; gap: .35rem; margin: .75rem 0; }
+    dialog input { width: 100%; padding: .7rem; font: inherit; }
+    dialog .camera-preview { height: min(45dvh, 22rem); margin: 0 auto; }
+    dialog .camera-controls { margin: 1rem 0 0; }
+    dialog button:disabled { opacity: .55; }
+    #welcomeStatus { position: fixed; bottom: 1rem; margin: 0; padding: .65rem 1rem; background: #005a5b; color: white; border-radius: .6rem; }
+    #welcomeStatus:empty { display: none; }
   </style>
 
   <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script defer src="./app.js"></script>
 </head>
 
 <body>
   <main class="welcome" aria-label="Finquita Gloria">
-    <img src="./finquita-gloria.png" alt="" width="1052" height="1495">
+    <img src="./finquita-gloria.webp" alt="" width="1052" height="1495">
 
     <button id="actionBtn" type="button">
       <span id="btnText" class="sr-only">Foto de cédula</span>
@@ -180,23 +171,46 @@
     </button>
   </main>
 
-  <section id="cameraContainer" class="hidden" aria-label="Cámara para la cédula">
+  <p id="welcomeStatus" role="status"></p>
+  <dialog id="cameraDialog" aria-labelledby="cameraTitle">
+    <h2 id="cameraTitle">Foto de cédula</h2>
+    <p>Coloque el frente de la cédula dentro del marco.</p>
     <div class="camera-preview">
       <video id="webcam" autoplay playsinline muted></video>
-
-      <div id="overlay">
-        <span>Alinee la cédula dentro del marco</span>
-      </div>
+      <div id="overlay" aria-hidden="true"></div>
     </div>
-
-    <div id="statusBanner" class="hidden" role="status">
-      <p id="statusText"></p>
-    </div>
-
+    <p id="cameraStatus" role="status"></p>
     <div class="camera-controls">
-      <button id="captureBtn" type="button">Tomar foto</button>
+      <button id="captureBtn" type="button" disabled>Tomar foto</button>
+      <button id="manualBtn" type="button">Ingresar manualmente</button>
       <button id="cancelCameraBtn" type="button">Cancelar</button>
     </div>
-  </section>
+  </dialog>
+  <dialog id="reviewDialog" aria-labelledby="reviewTitle">
+    <form id="reviewForm" autocomplete="off">
+      <h2 id="reviewTitle">Registrar entrada</h2>
+      <p id="reviewHint"></p>
+      <label>Número de cédula
+        <input id="cedula" inputmode="numeric" placeholder="000-0000000-0" maxlength="20" required>
+      </label>
+      <label>Nombre completo
+        <input id="guestName" maxlength="120" required>
+      </label>
+      <fieldset id="staffFields" hidden disabled>
+        <legend>Acceso del personal</legend>
+        <label>Correo electrónico
+          <input id="staffEmail" type="email" autocomplete="username" required>
+        </label>
+        <label>Contraseña
+          <input id="staffPassword" type="password" autocomplete="current-password" required>
+        </label>
+      </fieldset>
+      <p id="reviewStatus" role="status"></p>
+      <div class="camera-controls">
+        <button id="saveBtn" type="submit">Guardar entrada</button>
+        <button id="cancelReviewBtn" type="button">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>
